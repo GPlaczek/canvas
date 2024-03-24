@@ -1,4 +1,4 @@
-module GPlaczek/canvas
+module github.com/GPlaczek/canvas
 
 go 1.22.1
 
