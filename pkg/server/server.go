@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
 )
@@ -11,8 +12,9 @@ type canvasServer struct {
 	upgrader websocket.Upgrader
 }
 
-func (cs canvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("new connection from %s", r.RemoteAddr)
+func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s new connection from %s", r.Method, r.RemoteAddr)
+	rid := r.PathValue("id")
 	c, err := cs.upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
@@ -21,12 +23,22 @@ func (cs canvasServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cc := newClient(c)
-	cc.handleClient()
+	irid, err := strconv.Atoi(rid)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	cc.handleClient(irid)
 }
 
 func NewCanvasServer() canvasServer {
 	cs := canvasServer{upgrader: websocket.Upgrader{}}
-	http.Handle("/", cs)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/rooms/{id}", cs.JoinCanvas)
+
+	http.Handle("/", mux)
+
 	return cs
 }
 
