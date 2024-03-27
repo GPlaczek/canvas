@@ -53,7 +53,9 @@ func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 
 func NewCanvasServer() canvasServer {
 	cs := canvasServer{
-		upgrader: websocket.Upgrader{},
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(_ * http.Request) bool { return true }, 
+		},
 		rooms:    make(map[string]Room),
 	}
 

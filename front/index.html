@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+  hello world
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const socket = new WebSocket("ws://localhost:9090/room/123");
+    let currX = null, currY = null;
+
+    const draw = function(ox, oy, nx, ny) {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(nx, ny);
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.closePath();
+    };
+
+    socket.onopen = e => {
+      socket.send("Hello");
+    }
+    let drawing = false;
+
+    canvas.addEventListener("mousemove", e => { if (drawing) {
+      const __newX = e.clientX - canvas.offsetLeft;
+      const __newY = e.clientY - canvas.offsetTop;
+
+      if (currX !== null && currY !== null)
+        draw(currX, currY, __newX, __newY);
+
+			currX = __newX;
+			currY = __newY;
+    }});
+
+    canvas.addEventListener("mousedown", e => {
+      drawing = true;
+      currX = e.clientX - canvas.offsetLeft;
+      currY = e.clientY - canvas.offsetTop;
+      ctx.beginPath();
+      ctx.fillStyle = "black";
+      ctx.fillRect(currX, currY, 2, 2);
+      ctx.closePath();
+    });
+    canvas.addEventListener("mouseup", e => {
+      drawing = false;
+      currX = null;
+      currY = null;
+    });
+  </script>
+</body>
+</html>
