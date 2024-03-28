@@ -11,7 +11,11 @@
     const ctx = canvas.getContext("2d");
     // TODO: await connection establishment
     const socket = new WebSocket("ws://localhost:9090/room/123");
-    socket.onmessage = e => console.log(e);
+    socket.onmessage = e => {
+      line = JSON.parse(e.data);
+      for (let i = 0; i < line.x.length - 1; i++)
+        draw(line.x[i], line.y[i], line.x[i+1], line.y[i+1])
+    };
 
     let currX = null, currY = null, drawing = false;
 
@@ -32,10 +36,10 @@
       if (currX !== null && currY !== null)
         draw(currX, currY, __newX, __newY);
 
-			currX = __newX;
-			currY = __newY;
+      currX = __newX;
+      currY = __newY;
 
-			socket.send(JSON.stringify({type: 0, point: {x: currX, y: currY}}));
+      socket.send(JSON.stringify({type: 0, point: {x: currX, y: currY}}));
     }});
 
     canvas.addEventListener("mousedown", e => {
