@@ -46,6 +46,7 @@ func (cc *canvasClient) readSocket() {
 
 func (cc *canvasClient) HandleClient(room *Room) {
 	defer cc.connection.Close()
+	room.addClient(cc)
 
 	go cc.readSocket()
 	for {

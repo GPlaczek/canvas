@@ -14,3 +14,15 @@ type Point struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 }
+
+type Line struct {
+	Ind    int     `json:"ind"`
+	Points []Point `json:"point"`
+}
+
+func NewLine(i int) Line {
+	return Line{
+		Ind:    i,
+		Points: make([]Point, 0),
+	}
+}

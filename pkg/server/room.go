@@ -2,17 +2,18 @@ package server
 
 import (
 	"errors"
+	"log"
 )
 
 type Room struct {
-	lines        [][]Point
-	currentLines map[*canvasClient]*[]Point
+	lines        []Line
+	currentLines map[*canvasClient]int
 }
 
 func NewRoom() Room {
 	return Room{
-		lines:        make([][]Point, 0),
-		currentLines: make(map[*canvasClient]*[]Point),
+		lines:        make([]Line, 0),
+		currentLines: make(map[*canvasClient]int),
 	}
 }
 
@@ -22,6 +23,18 @@ func (r *Room) addClient(conn *canvasClient) error {
 	if ok {
 		return errors.New("Client is already in the room")
 	}
+
+	i := 0
+	for _, line := range r.lines {
+		err := conn.connection.WriteJSON(line)
+		if err != nil {
+			log.Println("Could not serialize the line")
+		}
+		i++
+	}
+
+	log.Println("Adding new client to a room")
+	r.currentLines[conn] = -1
 
 	return nil
 }
@@ -33,26 +46,26 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 		return errors.New("Client is not a member of the room")
 	}
 
-	var ln []Point
-	if line == nil {
-		ln = make([]Point, 0)
-		r.lines = append(r.lines, ln)
+	var ln *Line
+	if line == -1 {
+		r.currentLines[conn] = len(r.lines)
+		r.lines = append(r.lines, NewLine(len(r.lines)))
+		ln = &r.lines[len(r.lines)-1]
 	} else {
-		ln = *line
+		ln = &r.lines[line]
 	}
 
-	ln = append(ln, pt)
-
+	ln.Points = append(ln.Points, pt)
 	return nil
 }
 
 func (r *Room) endLine(conn *canvasClient) error {
 	line, ok := r.currentLines[conn]
-	if !ok || line == nil {
+	if !ok || line == -1 {
 		return errors.New("Client is not drawing a line")
 	}
 
-	r.currentLines[conn] = nil
+	r.currentLines[conn] = -1
 
 	return nil
 }

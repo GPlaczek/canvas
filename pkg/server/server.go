@@ -9,7 +9,7 @@ import (
 
 type canvasServer struct {
 	upgrader websocket.Upgrader
-	rooms    map[string]Room
+	rooms    map[string]*Room
 }
 
 func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
@@ -19,32 +19,29 @@ func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		{
-			room, ok := cs.rooms[rid]
-			if !ok {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			c, err := cs.upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				log.Printf("could not upgrade connection (error %s)", err)
-				return
-			}
-
-			cc := NewClient(c)
-			cc.HandleClient(&room)
+		room, ok := cs.rooms[rid]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
+
+		c, err := cs.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("could not upgrade connection (error %s)", err)
+			return
+		}
+
+		cc := NewClient(c)
+		go cc.HandleClient(room)
 	case http.MethodPost:
-		{
-			_, ok := cs.rooms[rid]
-			if ok {
-				w.WriteHeader(http.StatusConflict)
-				return
-			}
-
-			cs.rooms[rid] = NewRoom()
+		_, ok := cs.rooms[rid]
+		if ok {
+			w.WriteHeader(http.StatusConflict)
+			return
 		}
+
+		nr := NewRoom()
+		cs.rooms[rid] = &nr
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -54,9 +51,9 @@ func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 func NewCanvasServer() canvasServer {
 	cs := canvasServer{
 		upgrader: websocket.Upgrader{
-			CheckOrigin: func(_ * http.Request) bool { return true }, 
+			CheckOrigin: func(_ *http.Request) bool { return true },
 		},
-		rooms:    make(map[string]Room),
+		rooms: make(map[string]*Room),
 	}
 
 	mux := http.NewServeMux()
