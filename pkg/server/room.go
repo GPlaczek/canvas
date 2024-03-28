@@ -56,6 +56,15 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 	}
 
 	ln.Points = append(ln.Points, pt)
+
+	for client := range r.currentLines {
+		if client != conn {
+			client.connection.WriteJSON(Line{
+				Ind:    line,
+				Points: []Point{pt},
+			})
+		}
+	}
 	return nil
 }
 

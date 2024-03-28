@@ -5,16 +5,29 @@
 </head>
 <body>
   hello world
-  <canvas id="canvas" width="400" height="400"></canvas>
+  <canvas id="canvas" width="800" height="800"></canvas>
   <script>
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
     // TODO: await connection establishment
     const socket = new WebSocket("ws://localhost:9090/room/123");
+    let lastPoints = {}
     socket.onmessage = e => {
+      console.log(e.data);
       line = JSON.parse(e.data);
-      for (let i = 0; i < line.x.length - 1; i++)
-        draw(line.x[i], line.y[i], line.x[i+1], line.y[i+1])
+
+			let i = 0;
+      if (lastPoints[line.ind] === undefined) {
+      	lastPoints[line.ind] = [line.x[line.x.length-1], line.y[line.y.length-1]];
+      	i = 1;
+      }
+
+      for (;i < line.x.length; i++) {
+        draw(lastPoints[line.ind][0], lastPoints[line.ind][1], line.x[i], line.y[i])
+        lastPoints[line.ind] = [line.x[i], line.y[i]]
+      }
+
+      lastPoints[line.ind] = [line.x[line.x.length-1], line.y[line.y.length-1]];
     };
 
     let currX = null, currY = null, drawing = false;
