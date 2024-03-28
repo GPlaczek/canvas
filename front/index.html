@@ -66,6 +66,7 @@
     });
 
     canvas.addEventListener("mouseup", e => {
+      socket.send(JSON.stringify({type: 1}));
       drawing = false;
       currX = null;
       currY = null;
