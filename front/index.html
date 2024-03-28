@@ -9,8 +9,11 @@
   <script>
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
+    // TODO: await connection establishment
     const socket = new WebSocket("ws://localhost:9090/room/123");
-    let currX = null, currY = null;
+    socket.onmessage = e => console.log(e);
+
+    let currX = null, currY = null, drawing = false;
 
     const draw = function(ox, oy, nx, ny) {
       ctx.beginPath();
@@ -22,11 +25,6 @@
       ctx.closePath();
     };
 
-    socket.onopen = e => {
-      socket.send("Hello");
-    }
-    let drawing = false;
-
     canvas.addEventListener("mousemove", e => { if (drawing) {
       const __newX = e.clientX - canvas.offsetLeft;
       const __newY = e.clientY - canvas.offsetTop;
@@ -36,6 +34,8 @@
 
 			currX = __newX;
 			currY = __newY;
+
+			socket.send(JSON.stringify({type: 0, point: {x: currX, y: currY}}));
     }});
 
     canvas.addEventListener("mousedown", e => {
@@ -47,6 +47,7 @@
       ctx.fillRect(currX, currY, 2, 2);
       ctx.closePath();
     });
+
     canvas.addEventListener("mouseup", e => {
       drawing = false;
       currX = null;
