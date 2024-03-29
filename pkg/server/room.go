@@ -3,26 +3,34 @@ package server
 import (
 	"errors"
 	"log"
+	"sync"
 )
 
 type Room struct {
 	lines        []Line
-	currentLines map[*canvasClient]int
+	currentLines sync.Map  /* (*canvasClient, int) */
+
+	linesMtx     sync.RWMutex
 }
 
 func NewRoom() Room {
 	return Room{
 		lines:        make([]Line, 0),
-		currentLines: make(map[*canvasClient]int),
+		currentLines: sync.Map{},
 	}
 }
 
 func (r *Room) addClient(conn *canvasClient) error {
-	_, ok := r.currentLines[conn]
+	_, loaded := r.currentLines.LoadOrStore(conn, -1)
 
-	if ok {
+	if !loaded {
 		return errors.New("Client is already in the room")
 	}
+
+	log.Println("Adding new client to a room")
+
+	r.linesMtx.RLock()
+	defer r.linesMtx.Unlock()
 
 	i := 0
 	for _, line := range r.lines {
@@ -33,14 +41,12 @@ func (r *Room) addClient(conn *canvasClient) error {
 		i++
 	}
 
-	log.Println("Adding new client to a room")
-	r.currentLines[conn] = -1
-
 	return nil
 }
 
 func (r *Room) addPoint(conn *canvasClient, pt Point) error {
-	line, ok := r.currentLines[conn]
+	__line, ok := r.currentLines.Load(conn)
+	line := __line.(int)
 
 	if !ok {
 		return errors.New("Client is not a member of the room")
@@ -48,9 +54,12 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 
 	var ln *Line
 	if line == -1 {
-		r.currentLines[conn] = len(r.lines)
-		r.lines = append(r.lines, NewLine(len(r.lines)))
-		line = len(r.lines) - 1
+		r.linesMtx.Lock()
+		line = len(r.lines)
+		r.lines = append(r.lines, NewLine(line))
+		r.linesMtx.Unlock()
+
+		r.currentLines.Store(conn, line)
 		ln = &r.lines[line]
 	} else {
 		ln = &r.lines[line]
@@ -58,24 +67,26 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 
 	ln.Points = append(ln.Points, pt)
 
-	for client := range r.currentLines {
+	r.currentLines.Range(func (client, _ any) bool {
 		if client != conn {
-			client.connection.WriteJSON(Line{
+			client.(*canvasClient).connection.WriteJSON(Line{
 				Ind:    line,
 				Points: []Point{pt},
 			})
 		}
-	}
+		return true
+	})
+
 	return nil
 }
 
 func (r *Room) endLine(conn *canvasClient) error {
-	line, ok := r.currentLines[conn]
+	line, ok := r.currentLines.Load(conn)
 	if !ok || line == -1 {
 		return errors.New("Client is not drawing a line")
 	}
 
-	r.currentLines[conn] = -1
+	r.currentLines.Store(conn, -1)
 
 	return nil
 }
