@@ -3,22 +3,28 @@ package server
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
 type canvasServer struct {
-	upgrader websocket.Upgrader
-	rooms    map[string]*Room
+	upgrader  websocket.Upgrader
+	roomsLock sync.RWMutex
+	rooms     map[string]*Room
 }
 
-func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
+func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s new connection from %s", r.Method, r.RemoteAddr)
 
 	rid := r.PathValue("id")
 
 	switch r.Method {
 	case http.MethodGet:
+		// TODO: this lock does not need to be up for the connection upgrading
+		cs.roomsLock.RLock()
+		defer cs.roomsLock.RUnlock()
+
 		room, ok := cs.rooms[rid]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
@@ -32,8 +38,12 @@ func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cc := NewClient(c)
+		room.addClient(&cc)
 		go cc.HandleClient(room)
 	case http.MethodPost:
+		cs.roomsLock.Lock()
+		defer cs.roomsLock.Unlock()
+
 		_, ok := cs.rooms[rid]
 		if ok {
 			w.WriteHeader(http.StatusConflict)
@@ -48,7 +58,7 @@ func (cs canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewCanvasServer() canvasServer {
+func NewCanvasServer() *canvasServer {
 	cs := canvasServer{
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(_ *http.Request) bool { return true },
@@ -62,7 +72,7 @@ func NewCanvasServer() canvasServer {
 
 	http.Handle("/", mux)
 
-	return cs
+	return &cs
 }
 
 func (cs *canvasServer) StartServer(addr string) {
