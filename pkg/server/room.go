@@ -50,7 +50,8 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 	if line == -1 {
 		r.currentLines[conn] = len(r.lines)
 		r.lines = append(r.lines, NewLine(len(r.lines)))
-		ln = &r.lines[len(r.lines)-1]
+		line = len(r.lines) - 1
+		ln = &r.lines[line]
 	} else {
 		ln = &r.lines[line]
 	}
