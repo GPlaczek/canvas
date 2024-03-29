@@ -7,6 +7,7 @@ import (
 const (
 	MESSAGE_POINT = 0
 	MESSAGE_STOP  = 1
+	MESSAGE_CLEAN = 2
 )
 
 type Message struct {

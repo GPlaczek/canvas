@@ -10,15 +10,17 @@ import (
 type canvasClient struct {
 	connection *websocket.Conn
 
-	readMsg    chan (Message)
-	disconnect chan (struct{})
+	readMsg    chan Message
+	disconnect chan struct{}
+	pause      chan struct{}
 }
 
-func NewClient(conn *websocket.Conn) canvasClient {
-	return canvasClient{
+func NewClient(conn *websocket.Conn) *canvasClient {
+	return &canvasClient{
 		connection: conn,
-		readMsg:    make(chan (Message)),
-		disconnect: make(chan (struct{})),
+		readMsg:    make(chan Message),
+		disconnect: make(chan struct{}),
+		pause:      make(chan struct{}),
 	}
 }
 
@@ -56,9 +58,13 @@ func (cc *canvasClient) HandleClient(room *Room) {
 				room.addPoint(cc, mesg.Point)
 			case MESSAGE_STOP:
 				room.endLine(cc)
+			case MESSAGE_CLEAN:
+				go room.cleanCanvas()
 			default:
 				log.Println("Invalid message type")
 			}
+		case <-cc.pause:
+			<-cc.pause
 		case <-cc.disconnect:
 			break
 		}

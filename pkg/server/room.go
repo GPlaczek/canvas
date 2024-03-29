@@ -8,9 +8,9 @@ import (
 
 type Room struct {
 	lines        []Line
-	currentLines sync.Map  /* (*canvasClient, int) */
+	currentLines sync.Map /* (*canvasClient, int) */
 
-	linesMtx     sync.RWMutex
+	linesMtx sync.RWMutex
 }
 
 func NewRoom() Room {
@@ -23,14 +23,12 @@ func NewRoom() Room {
 func (r *Room) addClient(conn *canvasClient) error {
 	_, loaded := r.currentLines.LoadOrStore(conn, -1)
 
-	if !loaded {
+	if loaded {
 		return errors.New("Client is already in the room")
 	}
 
-	log.Println("Adding new client to a room")
-
 	r.linesMtx.RLock()
-	defer r.linesMtx.Unlock()
+	defer r.linesMtx.RUnlock()
 
 	i := 0
 	for _, line := range r.lines {
@@ -67,7 +65,7 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 
 	ln.Points = append(ln.Points, pt)
 
-	r.currentLines.Range(func (client, _ any) bool {
+	r.currentLines.Range(func(client, _ any) bool {
 		if client != conn {
 			client.(*canvasClient).connection.WriteJSON(Line{
 				Ind:    line,
@@ -89,4 +87,24 @@ func (r *Room) endLine(conn *canvasClient) error {
 	r.currentLines.Store(conn, -1)
 
 	return nil
+}
+
+func (r *Room) cleanCanvas() {
+	pauseUnpause := func() {
+		r.currentLines.Range(func(client, _ any) bool {
+			// TODO: run a goroutine for each client so as not to
+			// block waiting for each one to receive the message
+			client.(*canvasClient).pause <- struct{}{}
+			return true
+		})
+	}
+
+	pauseUnpause()
+	defer pauseUnpause()
+
+	r.lines = make([]Line, 0)
+	r.currentLines.Range(func(client, _ any) bool {
+		r.currentLines.Store(client, -1)
+		return true
+	})
 }

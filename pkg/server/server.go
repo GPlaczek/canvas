@@ -38,7 +38,7 @@ func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cc := NewClient(c)
-		room.addClient(&cc)
+		room.addClient(cc)
 		go cc.HandleClient(room)
 	case http.MethodPost:
 		cs.roomsLock.Lock()
