@@ -13,12 +13,11 @@
     const socket = new WebSocket("ws://localhost:9090/room/123");
     let lastPoints = {}
     socket.onmessage = e => {
-      console.log(e.data);
       line = JSON.parse(e.data);
 
 			let i = 0;
       if (lastPoints[line.ind] === undefined) {
-      	lastPoints[line.ind] = [line.x[line.x.length-1], line.y[line.y.length-1]];
+      	lastPoints[line.ind] = [line.x[0], line.y[0]];
       	i = 1;
       }
 
