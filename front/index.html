@@ -6,27 +6,41 @@
 <body>
   hello world
   <canvas id="canvas" width="800" height="800"></canvas>
+  <input type="button" id="clean" value="Clean" />
   <script>
     const canvas = document.getElementById("canvas");
+    const clean = document.getElementById("clean");
+
     const ctx = canvas.getContext("2d");
     // TODO: await connection establishment
     const socket = new WebSocket("ws://localhost:9090/room/123");
     let lastPoints = {}
+
+    clean.onclick = () => {
+      socket.send(JSON.stringify({type: 2}))
+    }
+
     socket.onmessage = e => {
-      line = JSON.parse(e.data);
+      mesg = JSON.parse(e.data);
 
-			let i = 0;
-      if (lastPoints[line.ind] === undefined) {
-      	lastPoints[line.ind] = [line.x[0], line.y[0]];
-      	i = 1;
+      switch (mesg.type) {
+        case 0:
+          let i = 0;
+          if (lastPoints[mesg.line.ind] === undefined) {
+            lastPoints[mesg.line.ind] = [mesg.line.x[0], mesg.line.y[0]];
+            i = 1;
+          }
+
+          for (;i < mesg.line.x.length; i++) {
+            draw(lastPoints[mesg.line.ind][0], lastPoints[mesg.line.ind][1], mesg.line.x[i], mesg.line.y[i])
+            lastPoints[mesg.line.ind] = [mesg.line.x[i], mesg.line.y[i]]
+          }
+
+          lastPoints[mesg.line.ind] = [mesg.line.x[mesg.line.x.length-1], mesg.line.y[mesg.line.y.length-1]];
+          break;
+        case 2:
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-
-      for (;i < line.x.length; i++) {
-        draw(lastPoints[line.ind][0], lastPoints[line.ind][1], line.x[i], line.y[i])
-        lastPoints[line.ind] = [line.x[i], line.y[i]]
-      }
-
-      lastPoints[line.ind] = [line.x[line.x.length-1], line.y[line.y.length-1]];
     };
 
     let currX = null, currY = null, drawing = false;
@@ -51,7 +65,13 @@
       currX = __newX;
       currY = __newY;
 
-      socket.send(JSON.stringify({type: 0, point: {x: currX, y: currY}}));
+      socket.send(JSON.stringify({
+        type: 0,
+        line: {
+          x: [currX],
+          y: [currY],
+        }
+      }));
     }});
 
     canvas.addEventListener("mousedown", e => {

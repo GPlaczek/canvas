@@ -12,7 +12,7 @@ const (
 
 type Message struct {
 	MType int   `json:"type"`
-	Point Point `json:"point,omitempty"`
+	Line  Line  `json:"line,omitempty"`
 }
 
 type Point struct {
@@ -32,9 +32,31 @@ func NewLine(i int) Line {
 	}
 }
 
+func (l *Line) UnmarshalJSON(data []byte) error {
+	var pts struct {
+		Ind int   `json:"ind,omitempty"`
+		X   []int `json:"x"`
+		Y   []int `json:"y"`
+	}
+
+	err := json.Unmarshal(data, &pts)
+	if err != nil {
+		return err
+	}
+
+	for i := range pts.X {
+		l.Points = append(l.Points, Point{
+			X: pts.X[i],
+			Y: pts.Y[i],
+		})
+	}
+
+	return nil
+}
+
 func (l Line) MarshalJSON() ([]byte, error) {
 	var pts struct {
-		Ind int   `json:"ind"`
+		Ind int   `json:"ind,omitempty"`
 		X   []int `json:"x"`
 		Y   []int `json:"y"`
 	}
