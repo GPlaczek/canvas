@@ -1,7 +1,8 @@
 package server
 
 import (
-	"log"
+	"os"
+	"log/slog"
 	"net/http"
 	"sync"
 
@@ -12,10 +13,12 @@ type canvasServer struct {
 	upgrader  websocket.Upgrader
 	roomsLock sync.RWMutex
 	rooms     map[string]*Room
+	logger    *slog.Logger
 }
 
 func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
-	log.Printf("%s new connection from %s", r.Method, r.RemoteAddr)
+	addrLogger := cs.logger.With("address", r.RemoteAddr)
+	addrLogger.Info("New connection", "method", r.Method)
 
 	rid := r.PathValue("id")
 
@@ -33,13 +36,14 @@ func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 
 		c, err := cs.upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("could not upgrade connection (error %s)", err)
+			addrLogger.Warn("could not upgrade connection", "error", err)
 			return
 		}
 
-		cc := NewClient(c)
+		cc := NewClient(c, addrLogger)
 		err = room.addClient(cc)
 		if err != nil {
+			addrLogger.Warn("Client already in the room")
 			w.WriteHeader(http.StatusConflict)
 			return
 		}
@@ -54,7 +58,7 @@ func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		nr := NewRoom()
+		nr := NewRoom(cs.logger)
 		cs.rooms[rid] = &nr
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -68,6 +72,7 @@ func NewCanvasServer() *canvasServer {
 			CheckOrigin: func(_ *http.Request) bool { return true },
 		},
 		rooms: make(map[string]*Room),
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 
 	mux := http.NewServeMux()
@@ -80,6 +85,6 @@ func NewCanvasServer() *canvasServer {
 }
 
 func (cs *canvasServer) StartServer(addr string) {
-	log.Print("Starting server...")
-	log.Fatal(http.ListenAndServe(addr, nil))
+	cs.logger.Info("Starting server...")
+	cs.logger.Error("Server stopped", "error", http.ListenAndServe(addr, nil))
 }

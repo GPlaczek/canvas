@@ -2,22 +2,24 @@ package server
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	"github.com/gorilla/websocket"
 )
 
 type canvasClient struct {
 	connection *websocket.Conn
+	logger     *slog.Logger
 
 	readMsg    chan Message
 	disconnect chan struct{}
 	pause      chan struct{}
 }
 
-func NewClient(conn *websocket.Conn) *canvasClient {
+func NewClient(conn *websocket.Conn, logger *slog.Logger) *canvasClient {
 	return &canvasClient{
 		connection: conn,
+		logger:     logger,
 		readMsg:    make(chan Message),
 		disconnect: make(chan struct{}),
 		pause:      make(chan struct{}),
@@ -38,7 +40,7 @@ func (cc *canvasClient) readSocket() {
 		var m Message
 		err = json.Unmarshal(msg, &m)
 		if err != nil {
-			log.Printf("Malformed message %s", err)
+			cc.logger.Warn("Malformed message", "error", err)
 			continue
 		}
 
@@ -61,17 +63,18 @@ func (cc *canvasClient) HandleClient(room *Room) {
 
 				err := room.addPoint(cc, mesg.Line.Points[0])
 				if err != nil {
-					log.Println(err)
+					cc.logger.Warn("Error processing addPoint message", "error", err)
 				}
 			case MESSAGE_STOP:
 				err := room.endLine(cc)
 				if err != nil {
-					log.Println(err)
+					cc.logger.Warn("Error processing endLine message", "error", err)
 				}
 			case MESSAGE_CLEAN:
+				cc.logger.Info("Cleaning the room")
 				go room.cleanCanvas()
 			default:
-				log.Println("Invalid message type")
+				cc.logger.Warn("Invalid message type")
 			}
 		case <-cc.pause:
 			<-cc.pause

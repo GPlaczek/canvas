@@ -2,19 +2,21 @@ package server
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"sync"
 )
 
 type Room struct {
 	lines        []Line
 	currentLines sync.Map /* (*canvasClient, int) */
+	logger       *slog.Logger
 
 	linesMtx sync.RWMutex
 }
 
-func NewRoom() Room {
+func NewRoom(logger *slog.Logger) Room {
 	return Room{
+		logger:       logger,
 		lines:        make([]Line, 0),
 		currentLines: sync.Map{},
 	}
@@ -37,7 +39,7 @@ func (r *Room) addClient(conn *canvasClient) error {
 			Line:  line,
 		})
 		if err != nil {
-			log.Println("Could not serialize the line")
+			r.logger.Warn("Could not serialize the line")
 		}
 		i++
 	}
@@ -79,7 +81,7 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 			})
 
 			if err != nil {
-				log.Println(err)
+				r.logger.Warn("%s", err)
 			}
 		}
 		return true
@@ -120,7 +122,7 @@ func (r *Room) cleanCanvas() {
 		})
 
 		if err != nil {
-			log.Println(err)
+			r.logger.Warn("%s", err)
 		}
 		return true
 	})
