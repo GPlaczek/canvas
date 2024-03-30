@@ -55,11 +55,19 @@ func (cc *canvasClient) HandleClient(room *Room) {
 		case mesg := <-cc.readMsg:
 			switch mesg.MType {
 			case MESSAGE_POINT:
-				if len(mesg.Line.Points) > 0 {
-					room.addPoint(cc, mesg.Line.Points[0])
+				if len(mesg.Line.Points) == 0 {
+					continue
+				}
+
+				err := room.addPoint(cc, mesg.Line.Points[0])
+				if err != nil {
+					log.Println(err)
 				}
 			case MESSAGE_STOP:
-				room.endLine(cc)
+				err := room.endLine(cc)
+				if err != nil {
+					log.Println(err)
+				}
 			case MESSAGE_CLEAN:
 				go room.cleanCanvas()
 			default:

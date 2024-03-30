@@ -34,7 +34,7 @@ func (r *Room) addClient(conn *canvasClient) error {
 	for _, line := range r.lines {
 		err := conn.connection.WriteJSON(Message{
 			MType: MESSAGE_POINT,
-			Line: line,
+			Line:  line,
 		})
 		if err != nil {
 			log.Println("Could not serialize the line")
@@ -70,13 +70,17 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 
 	r.currentLines.Range(func(client, _ any) bool {
 		if client != conn {
-			client.(*canvasClient).connection.WriteJSON(Message{
+			err := client.(*canvasClient).connection.WriteJSON(Message{
 				Line: Line{
 					Ind:    line,
 					Points: []Point{pt},
 				},
 				MType: MESSAGE_POINT,
 			})
+
+			if err != nil {
+				log.Println(err)
+			}
 		}
 		return true
 	})
@@ -111,9 +115,13 @@ func (r *Room) cleanCanvas() {
 	r.lines = make([]Line, 0)
 	r.currentLines.Range(func(client, _ any) bool {
 		r.currentLines.Store(client, -1)
-		client.(*canvasClient).connection.WriteJSON(Message{
-			MType: MESSAGE_CLEAN, 
+		err := client.(*canvasClient).connection.WriteJSON(Message{
+			MType: MESSAGE_CLEAN,
 		})
+
+		if err != nil {
+			log.Println(err)
+		}
 		return true
 	})
 }

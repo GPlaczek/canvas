@@ -11,8 +11,8 @@ const (
 )
 
 type Message struct {
-	MType int   `json:"type"`
-	Line  Line  `json:"line,omitempty"`
+	MType int  `json:"type"`
+	Line  Line `json:"line,omitempty"`
 }
 
 type Point struct {
