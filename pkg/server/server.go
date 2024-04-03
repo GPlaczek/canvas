@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -48,18 +49,66 @@ func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		go cc.HandleClient(room)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+}
+
+func (cs *canvasServer) RoomsHandler(w http.ResponseWriter, r *http.Request) {
+	addrLogger := cs.logger.With("address", r.RemoteAddr)
+	addrLogger.Info("New connection", "method", r.Method)
+
+	switch r.Method {
 	case http.MethodPost:
+		var rr RegisterRoom
+		err := json.NewDecoder(r.Body).Decode(&rr)
+		if err != nil {
+			addrLogger.Info("Bad register room request", "error", err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+
+		if rr.Name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		cs.roomsLock.Lock()
 		defer cs.roomsLock.Unlock()
 
-		_, ok := cs.rooms[rid]
+		_, ok := cs.rooms[rr.Name]
 		if ok {
 			w.WriteHeader(http.StatusConflict)
 			return
 		}
 
 		nr := NewRoom(cs.logger)
-		cs.rooms[rid] = &nr
+		cs.rooms[rr.Name] = &nr
+	case http.MethodGet:
+		cs.roomsLock.RLock()
+		defer cs.roomsLock.RUnlock()
+
+		rl := make([]string, len(cs.rooms))
+
+		i := 0
+		for k := range cs.rooms {
+			rl[i] = k
+			i++
+		}
+
+		body, err := json.Marshal(rl)
+		if err != nil {
+			addrLogger.Error("Could not serialize response body")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(body)
+		if err != nil {
+			addrLogger.Error("Could not write response body")
+		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -81,8 +130,8 @@ func NewCanvasServer(level slog.Level) *canvasServer {
 	}
 
 	mux := http.NewServeMux()
-	// mux.HandleFunc("/room", cs.RoomsHandler)
-	mux.HandleFunc("/room/{id}", cs.JoinCanvas)
+	mux.HandleFunc("/rooms", cs.RoomsHandler)
+	mux.HandleFunc("/rooms/{id}", cs.JoinCanvas)
 
 	http.Handle("/", mux)
 

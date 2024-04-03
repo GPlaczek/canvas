@@ -10,6 +10,10 @@ const (
 	MESSAGE_CLEAN = 2
 )
 
+type RegisterRoom struct {
+	Name string `json:"name"`
+}
+
 type Message struct {
 	MType int  `json:"type"`
 	Line  Line `json:"line,omitempty"`
