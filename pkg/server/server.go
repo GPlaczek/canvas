@@ -1,9 +1,9 @@
 package server
 
 import (
-	"os"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -66,13 +66,18 @@ func (cs *canvasServer) JoinCanvas(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewCanvasServer() *canvasServer {
+func NewCanvasServer(level slog.Level) *canvasServer {
+	lv := new(slog.LevelVar)
+	lv.Set(level)
+
 	cs := canvasServer{
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(_ *http.Request) bool { return true },
 		},
 		rooms: make(map[string]*Room),
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: lv,
+		})),
 	}
 
 	mux := http.NewServeMux()
