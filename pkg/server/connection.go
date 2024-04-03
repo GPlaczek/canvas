@@ -34,6 +34,7 @@ func (cc *canvasClient) readSocket() {
 	for {
 		_, msg, err := cc.connection.ReadMessage()
 		if err != nil {
+			cc.logger.Debug("Could not read message from the websocket", "error", err)
 			break
 		}
 
@@ -49,7 +50,10 @@ func (cc *canvasClient) readSocket() {
 }
 
 func (cc *canvasClient) HandleClient(room *Room) {
-	defer cc.connection.Close()
+	defer func() {
+		room.removeClient(cc)
+		cc.connection.Close()
+	}()
 
 	go cc.readSocket()
 	for {
@@ -79,7 +83,8 @@ func (cc *canvasClient) HandleClient(room *Room) {
 		case <-cc.pause:
 			<-cc.pause
 		case <-cc.disconnect:
-			break
+			cc.logger.Info("Disconnecting client")
+			return
 		}
 	}
 }

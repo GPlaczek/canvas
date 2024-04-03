@@ -47,6 +47,10 @@ func (r *Room) addClient(conn *canvasClient) error {
 	return nil
 }
 
+func (r *Room) removeClient(conn *canvasClient) {
+	r.currentLines.Delete(conn)
+}
+
 func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 	__line, ok := r.currentLines.Load(conn)
 	line := __line.(int)
@@ -81,7 +85,7 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 			})
 
 			if err != nil {
-				r.logger.Warn("%s", err)
+				r.logger.Warn("Could not sent lines to a client", "error", err)
 			}
 		}
 		return true
@@ -122,7 +126,7 @@ func (r *Room) cleanCanvas() {
 		})
 
 		if err != nil {
-			r.logger.Warn("%s", err)
+			r.logger.Warn("Could not send clean message to a client", "error", err)
 		}
 		return true
 	})
