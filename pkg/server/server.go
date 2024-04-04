@@ -115,6 +115,15 @@ func (cs *canvasServer) RoomsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func corsWrapper(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func NewCanvasServer(level slog.Level) *canvasServer {
 	lv := new(slog.LevelVar)
 	lv.Set(level)
@@ -133,7 +142,7 @@ func NewCanvasServer(level slog.Level) *canvasServer {
 	mux.HandleFunc("/rooms", cs.RoomsHandler)
 	mux.HandleFunc("/rooms/{id}", cs.JoinCanvas)
 
-	http.Handle("/", mux)
+	http.Handle("/", corsWrapper(mux))
 
 	return &cs
 }
