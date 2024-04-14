@@ -5,6 +5,8 @@
   <style>
     body > div {
       float: left;
+    }
+    body > * {
       margin: 10px;
     }
     #canvas {
@@ -36,19 +38,23 @@
   </style>
 </head>
 <body>
+  <h1 id="room_header">Canvas</h1>
   <div id="canvas_container">
     <canvas id="canvas" width="800" height="800"></canvas>
   </div>
 
   <div id="controllers">
-    <input type="button" id="clean" value="Clean" />
     <h4>Rooms</h4>
     <table id="rooms"></table>
+    <input type="button" id="clean" value="Clean canvas" />
+    <input type="button" id="leave" value="Leave room" />
   </div>
 
   <script>
     const roomsList = document.getElementById("rooms");
     const clean = document.getElementById("clean");
+    const leave = document.getElementById("leave");
+    const roomHeader = document.getElementById("room_header");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -67,8 +73,12 @@
       ctx.closePath();
     };
 
-    const cleanCanvas = () =>
+    const cleanCanvas = () => {
+      lastPoints = {};
+      currX = null;
+      currY = null;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
 
     const onSocketMessage = e => {
       mesg = JSON.parse(e.data);
@@ -132,7 +142,11 @@
     };
 
     const activateCallbacks = () => {
-      clean.onclick = () => socket.send(JSON.stringify({type: 2}))
+      clean.onclick = () => socket.send(JSON.stringify({type: 2}));
+      leave.onclick = () => {
+        roomHeader.textContent = "Canvas";
+        leaveRoom();
+      };
 
       socket.onmessage = onSocketMessage;
       canvas.addEventListener("mousemove", onMouseMove);
@@ -141,6 +155,10 @@
     };
 
     const leaveRoom = () => {
+      socket.onclose = () => {};
+      socket.onerror = () => {};
+      socket.close();
+
       clean.onclick = () => {};
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mousedown", onMouseDown);
@@ -150,6 +168,7 @@
     };
 
     const joinRoom = name => {
+      roomHeader.textContent = name;
       currX = null;
       currY = null;
       lastPoints = {};
