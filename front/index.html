@@ -94,8 +94,10 @@
     };
 
      const onMouseMove = e => { if (drawing) {
-      const __newX = e.clientX - canvas.offsetLeft;
-      const __newY = e.clientY - canvas.offsetTop;
+      const __rect = canvas.getBoundingClientRect();
+
+      const __newX = e.clientX - __rect.left + window.pageXOffset;
+      const __newY = e.clientY - __rect.top + window.pageYOffset;
 
       if (currX !== null && currY !== null)
         draw(currX, currY, __newX, __newY);
@@ -111,8 +113,11 @@
 
     const onMouseDown = e => {
       drawing = true;
-      currX = e.clientX - canvas.offsetLeft;
-      currY = e.clientY - canvas.offsetTop;
+      const __rect = canvas.getBoundingClientRect();
+
+      currX = e.clientX - __rect.left + window.pageXOffset;
+      currY = e.clientY - __rect.top + window.pageYOffset;
+
       ctx.beginPath();
       ctx.fillStyle = "black";
       ctx.fillRect(currX, currY, 2, 2);
@@ -145,6 +150,10 @@
     };
 
     const joinRoom = name => {
+      currX = null;
+      currY = null;
+      lastPoints = {};
+
       if (socket)
         leaveRoom();
 
@@ -161,18 +170,19 @@
     };
 
     fetch("http://192.168.1.23:9090/rooms", {"mode": "cors"}).then(response => {
-    	response.json().then(js => {
-      	for (const room of js) {
-      		const listRow = roomsList.insertRow(-1);
-      		listRow.appendChild(document.createTextNode(room));
+      response.json().then(js => {
+        for (const room of js) {
+          const listRow = roomsList.insertRow(-1);
+          listRow.appendChild(document.createTextNode(room));
 
-					let button = document.createElement("input");
-					button.type = "button";
-					button.value = "join";
-					button.onclick = () => { joinRoom(room); }
-      		listRow.appendChild(button);
-    		}
-    	});
+          let button = document.createElement("input");
+          button.type = "button";
+          button.value = "join";
+          button.class = "join_buttons";
+          button.onclick = () => { joinRoom(room); }
+          listRow.appendChild(button);
+        }
+      });
     });
   </script>
 </body>
