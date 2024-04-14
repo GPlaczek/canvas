@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -96,6 +97,7 @@ func (cs *canvasServer) RoomsHandler(w http.ResponseWriter, r *http.Request) {
 			rl[i] = k
 			i++
 		}
+		sort.Strings(rl)
 
 		body, err := json.Marshal(rl)
 		if err != nil {
