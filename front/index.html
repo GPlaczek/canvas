@@ -30,10 +30,24 @@
       float: right;
     }
     #rooms {
-      min-width: 200px;
+      width: 100%;
     }
     #rooms tr:nth-child(even) {
       background-color: #dfdfdf;
+    }
+    #new_room_container {
+      float: left;
+      width: 100%;
+    }
+    #new_room_container > input {
+      margin: 0px;
+    }
+    #room_name {
+      width: 65%;
+    }
+    #new_room {
+      float: right;
+      width: 25%;
     }
   </style>
 </head>
@@ -46,6 +60,13 @@
   <div id="controllers">
     <h4>Rooms</h4>
     <table id="rooms"></table>
+    <hr/>
+    <h4>Add a new room</h4>
+    <div id="new_room_container">
+      <input type="text" id="room_name" placeholder="room name" />
+      <input type="button" id="new_room" value="add"/>
+    </div>
+    <hr/>
     <input type="button" id="clean" value="Clean canvas" />
     <input type="button" id="leave" value="Leave room" />
   </div>
@@ -55,6 +76,8 @@
     const clean = document.getElementById("clean");
     const leave = document.getElementById("leave");
     const roomHeader = document.getElementById("room_header");
+    const roomName = document.getElementById("room_name");
+    const newRoom = document.getElementById("new_room");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -62,6 +85,30 @@
 
     let lastPoints = {}
     let currX = null, currY = null, drawing = false;
+
+
+    const loadRooms = () => fetch("http://192.168.1.23:9090/rooms", {"mode": "cors"}).then(response => {
+      response.json().then(js => {
+        let tbody = roomsList.getElementsByTagName('tbody')[0];
+
+        if (tbody !== undefined) {
+          while (tbody.firstChild)
+            tbody.removeChild(tbody.firstChild);
+        }
+
+        for (const room of js) {
+          const listRow = roomsList.insertRow(-1);
+          listRow.appendChild(document.createTextNode(room));
+
+          let button = document.createElement("input");
+          button.type = "button";
+          button.value = "join";
+          button.class = "join_buttons";
+          button.onclick = () => { joinRoom(room); }
+          listRow.appendChild(button);
+        }
+      });
+    });
 
     const draw = function(ox, oy, nx, ny) {
       ctx.beginPath();
@@ -188,21 +235,31 @@
       };
     };
 
-    fetch("http://192.168.1.23:9090/rooms", {"mode": "cors"}).then(response => {
-      response.json().then(js => {
-        for (const room of js) {
-          const listRow = roomsList.insertRow(-1);
-          listRow.appendChild(document.createTextNode(room));
+    newRoom.onclick = () => {
+      const __roomName = roomName.value;
 
-          let button = document.createElement("input");
-          button.type = "button";
-          button.value = "join";
-          button.class = "join_buttons";
-          button.onclick = () => { joinRoom(room); }
-          listRow.appendChild(button);
-        }
+      if (__roomName === "") {
+        roomName.style.border = "2px solid red";
+        return
+      }
+
+      roomName.value = "";
+      roomName.style.border = "";
+
+      fetch("http://192.168.1.23:9090/rooms", {
+        method: "post",
+        body: JSON.stringify({
+          name: __roomName
+        }),
       });
-    });
+
+      loadRooms();
+    };
+
+    loadRooms();
+
+    setInterval(loadRooms, 3000);
+
   </script>
 </body>
 </html>
