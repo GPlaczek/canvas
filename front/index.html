@@ -7,20 +7,32 @@
   hello world
   <canvas id="canvas" width="800" height="800"></canvas>
   <input type="button" id="clean" value="Clean" />
+  <table id="rooms"></table>
   <script>
-    const canvas = document.getElementById("canvas");
+    const roomsList = document.getElementById("rooms");
     const clean = document.getElementById("clean");
-
+    const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
-    // TODO: await connection establishment
-    const socket = new WebSocket("ws://localhost:9090/room/123");
+
+    let socket;
+
     let lastPoints = {}
+    let currX = null, currY = null, drawing = false;
 
-    clean.onclick = () => {
-      socket.send(JSON.stringify({type: 2}))
-    }
+    const draw = function(ox, oy, nx, ny) {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(nx, ny);
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.closePath();
+    };
 
-    socket.onmessage = e => {
+    const cleanCanvas = () =>
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const onSocketMessage = e => {
       mesg = JSON.parse(e.data);
 
       switch (mesg.type) {
@@ -39,23 +51,11 @@
           lastPoints[mesg.line.ind] = [mesg.line.x[mesg.line.x.length-1], mesg.line.y[mesg.line.y.length-1]];
           break;
         case 2:
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          cleanCanvas();
       }
     };
 
-    let currX = null, currY = null, drawing = false;
-
-    const draw = function(ox, oy, nx, ny) {
-      ctx.beginPath();
-      ctx.moveTo(ox, oy);
-      ctx.lineTo(nx, ny);
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.closePath();
-    };
-
-    canvas.addEventListener("mousemove", e => { if (drawing) {
+     const onMouseMove = e => { if (drawing) {
       const __newX = e.clientX - canvas.offsetLeft;
       const __newY = e.clientY - canvas.offsetTop;
 
@@ -67,14 +67,11 @@
 
       socket.send(JSON.stringify({
         type: 0,
-        line: {
-          x: [currX],
-          y: [currY],
-        }
+        line: { x: [currX], y: [currY] }
       }));
-    }});
+    }};
 
-    canvas.addEventListener("mousedown", e => {
+    const onMouseDown = e => {
       drawing = true;
       currX = e.clientX - canvas.offsetLeft;
       currY = e.clientY - canvas.offsetTop;
@@ -82,13 +79,62 @@
       ctx.fillStyle = "black";
       ctx.fillRect(currX, currY, 2, 2);
       ctx.closePath();
-    });
+    };
 
-    canvas.addEventListener("mouseup", e => {
+    const onMouseUp = e => {
       socket.send(JSON.stringify({type: 1}));
       drawing = false;
       currX = null;
       currY = null;
+    };
+
+    const activateCallbacks = () => {
+      clean.onclick = () => socket.send(JSON.stringify({type: 2}))
+
+      socket.onmessage = onSocketMessage;
+      canvas.addEventListener("mousemove", onMouseMove);
+      canvas.addEventListener("mousedown", onMouseDown);
+      canvas.addEventListener("mouseup", onMouseUp);
+    };
+
+    const leaveRoom = () => {
+      clean.onclick = () => {};
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      canvas.removeEventListener("mouseup", onMouseUp);
+
+      cleanCanvas();
+    };
+
+    const joinRoom = name => {
+      if (socket)
+        leaveRoom();
+
+      socket = new WebSocket(`ws://192.168.1.23:9090/rooms/${name}`);
+      socket.onopen = activateCallbacks();
+      socket.onclose = () => {
+        leaveRoom();
+        window.alert("Closed connection to the server, disconnected from the room");
+      };
+      socket.onerror = () => {
+        leaveRoom();
+        window.alert("Connection error, disconnected from the room");
+      };
+    };
+
+    fetch("http://192.168.1.23:9090/rooms", {"mode": "cors"}).then(response => {
+    	response.json().then(js => {
+      	for (const room of js) {
+      		const listRow = roomsList.insertRow(-1);
+      		listRow.appendChild(document.createTextNode(room));
+
+					let button = document.createElement("input");
+					button.type = "button";
+					button.value = "join";
+					button.onclick = () => { joinRoom(room); }
+      		listRow.appendChild(button);
+    		}
+    	});
     });
   </script>
 </body>
