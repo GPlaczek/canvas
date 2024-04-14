@@ -2,12 +2,50 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
+  <style>
+    body > div {
+      float: left;
+      margin: 10px;
+    }
+    #canvas {
+      border: black 3px solid;
+      margin: auto;
+      padding: auto;
+    }
+    #controllers > * {
+      margin: 5px;
+    }
+    #controllers > input {
+      width: 100%;
+    }
+    #canvas_container {
+      position: relative;
+      width: 806px;
+      height: 806px;
+    }
+    #rooms input {
+      margin-left: 10px;
+      float: right;
+    }
+    #rooms {
+      min-width: 200px;
+    }
+    #rooms tr:nth-child(even) {
+      background-color: #dfdfdf;
+    }
+  </style>
 </head>
 <body>
-  hello world
-  <canvas id="canvas" width="800" height="800"></canvas>
-  <input type="button" id="clean" value="Clean" />
-  <table id="rooms"></table>
+  <div id="canvas_container">
+    <canvas id="canvas" width="800" height="800"></canvas>
+  </div>
+
+  <div id="controllers">
+    <input type="button" id="clean" value="Clean" />
+    <h4>Rooms</h4>
+    <table id="rooms"></table>
+  </div>
+
   <script>
     const roomsList = document.getElementById("rooms");
     const clean = document.getElementById("clean");
