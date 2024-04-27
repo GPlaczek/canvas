@@ -1,17 +1,20 @@
 package server
 
 import (
-	"encoding/json"
 	"log/slog"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/gorilla/websocket"
+
+	"github.com/GPlaczek/canvas/pkg/protocol"
 )
 
 type canvasClient struct {
 	connection *websocket.Conn
 	logger     *slog.Logger
 
-	readMsg    chan Message
+	readMsg    chan *protocol.Message
 	disconnect chan struct{}
 	pause      chan struct{}
 }
@@ -20,7 +23,7 @@ func NewClient(conn *websocket.Conn, logger *slog.Logger) *canvasClient {
 	return &canvasClient{
 		connection: conn,
 		logger:     logger,
-		readMsg:    make(chan Message),
+		readMsg:    make(chan *protocol.Message),
 		disconnect: make(chan struct{}),
 		pause:      make(chan struct{}),
 	}
@@ -38,14 +41,14 @@ func (cc *canvasClient) readSocket() {
 			break
 		}
 
-		var m Message
-		err = json.Unmarshal(msg, &m)
+		var m protocol.Message
+		err = proto.Unmarshal(msg, &m)
 		if err != nil {
 			cc.logger.Warn("Malformed message", "error", err)
 			continue
 		}
 
-		cc.readMsg <- m
+		cc.readMsg <- &m
 	}
 }
 
@@ -59,22 +62,24 @@ func (cc *canvasClient) HandleClient(room *Room) {
 	for {
 		select {
 		case mesg := <-cc.readMsg:
-			switch mesg.MType {
-			case MESSAGE_POINT:
-				if len(mesg.Line.Points) == 0 {
+			switch mesg.Mtype {
+			case protocol.MessageType_MESSAGE_POINT:
+				if mesg.Line == nil || len(mesg.Line.Points) == 0 {
 					continue
 				}
 
-				err := room.addPoint(cc, mesg.Line.Points[0])
+				pt := ProtocolToPoint(mesg.Line.Points[0]) 
+
+				err := room.addPoint(cc, *pt)
 				if err != nil {
 					cc.logger.Warn("Error processing addPoint message", "error", err)
 				}
-			case MESSAGE_STOP:
+			case protocol.MessageType_MESSAGE_STOP:
 				err := room.endLine(cc)
 				if err != nil {
 					cc.logger.Warn("Error processing endLine message", "error", err)
 				}
-			case MESSAGE_CLEAN:
+			case protocol.MessageType_MESSAGE_CLEAN:
 				cc.logger.Info("Cleaning the room")
 				go room.cleanCanvas()
 			default:

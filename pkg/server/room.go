@@ -4,6 +4,11 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/GPlaczek/canvas/pkg/protocol"
+	"github.com/gorilla/websocket"
 )
 
 type Room struct {
@@ -34,12 +39,17 @@ func (r *Room) addClient(conn *canvasClient) error {
 
 	i := 0
 	for _, line := range r.lines {
-		err := conn.connection.WriteJSON(Message{
-			MType: MESSAGE_POINT,
-			Line:  line,
-		})
+		msg := &protocol.Message {
+			Mtype: protocol.MessageType_MESSAGE_POINT,
+			Line: line.Protocol(),
+		}
+		out, err := proto.Marshal(msg)
 		if err != nil {
 			r.logger.Warn("Could not serialize the line")
+		}
+		err = conn.connection.WriteMessage(websocket.BinaryMessage, out)
+		if err != nil {
+			r.logger.Error("Could not send message") 
 		}
 		i++
 	}
@@ -76,13 +86,19 @@ func (r *Room) addPoint(conn *canvasClient, pt Point) error {
 
 	r.currentLines.Range(func(client, _ any) bool {
 		if client != conn {
-			err := client.(*canvasClient).connection.WriteJSON(Message{
-				Line: Line{
-					Ind:    line,
-					Points: []Point{pt},
-				},
-				MType: MESSAGE_POINT,
-			})
+			ln := Line{
+				Ind:    line,
+				Points: []Point{pt},
+			}
+			msg := &protocol.Message {
+				Mtype: protocol.MessageType_MESSAGE_POINT,
+				Line: ln.Protocol(),
+			}
+			out, err := proto.Marshal(msg)
+			if err != nil {
+				r.logger.Warn("Could not serialize the line")
+			}
+			err = client.(*canvasClient).connection.WriteMessage(websocket.BinaryMessage, out)
 
 			if err != nil {
 				r.logger.Warn("Could not sent lines to a client", "error", err)
@@ -121,10 +137,15 @@ func (r *Room) cleanCanvas() {
 	r.lines = make([]Line, 0)
 	r.currentLines.Range(func(client, _ any) bool {
 		r.currentLines.Store(client, -1)
-		err := client.(*canvasClient).connection.WriteJSON(Message{
-			MType: MESSAGE_CLEAN,
-		})
+		msg := &protocol.Message {
+			Mtype: protocol.MessageType_MESSAGE_CLEAN,
+		}
+		out, err := proto.Marshal(msg)
+		if err != nil {
+			r.logger.Warn("Could not serialize message")
+		}
 
+		err = client.(*canvasClient).connection.WriteMessage(websocket.BinaryMessage, out)
 		if err != nil {
 			r.logger.Warn("Could not send clean message to a client", "error", err)
 		}

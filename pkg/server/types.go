@@ -1,27 +1,16 @@
 package server
 
 import (
-	"encoding/json"
-)
-
-const (
-	MESSAGE_POINT = 0
-	MESSAGE_STOP  = 1
-	MESSAGE_CLEAN = 2
+	"github.com/GPlaczek/canvas/pkg/protocol"
 )
 
 type RegisterRoom struct {
 	Name string `json:"name"`
 }
 
-type Message struct {
-	MType int  `json:"type"`
-	Line  Line `json:"line,omitempty"`
-}
-
 type Point struct {
-	X int `json:"x"`
-	Y int `json:"y"`
+	X int
+	Y int
 }
 
 type Line struct {
@@ -36,42 +25,42 @@ func NewLine(i int) Line {
 	}
 }
 
-func (l *Line) UnmarshalJSON(data []byte) error {
-	var pts struct {
-		Ind int   `json:"ind,omitempty"`
-		X   []int `json:"x"`
-		Y   []int `json:"y"`
+func ProtocolToPoint(pt *protocol.Point) *Point {
+	return &Point {
+		X: int(pt.X),
+		Y: int(pt.Y),
 	}
-
-	err := json.Unmarshal(data, &pts)
-	if err != nil {
-		return err
-	}
-
-	for i := range pts.X {
-		l.Points = append(l.Points, Point{
-			X: pts.X[i],
-			Y: pts.Y[i],
-		})
-	}
-
-	return nil
 }
 
-func (l Line) MarshalJSON() ([]byte, error) {
-	var pts struct {
-		Ind int   `json:"ind,omitempty"`
-		X   []int `json:"x"`
-		Y   []int `json:"y"`
+func (p *Point) Protocol() *protocol.Point {
+	return &protocol.Point{
+		X: int32(p.X),
+		Y: int32(p.Y),
+	}
+}
+
+func ProtocolToLine(ln *protocol.Line) *Line {
+	line := &Line{
+		Ind: int(ln.Ind),
+		Points: make([]Point, len(ln.Points)),
 	}
 
-	pts.Ind = l.Ind
-	pts.X = make([]int, len(l.Points))
-	pts.Y = make([]int, len(l.Points))
+	for i, pt := range ln.Points {
+		line.Points[i] = *ProtocolToPoint(pt) 
+	}
+
+	return line
+}
+
+func (l *Line) Protocol() *protocol.Line {
+	p := make([]*protocol.Point, len(l.Points))
+
 	for i, pt := range l.Points {
-		pts.X[i] = pt.X
-		pts.Y[i] = pt.Y
+		p[i] = pt.Protocol()
 	}
 
-	return json.Marshal(&pts)
+	return &protocol.Line {
+		Ind: int32(l.Ind),
+		Points: p,
+	}
 }

@@ -50,6 +50,7 @@
       width: 25%;
     }
   </style>
+  <script src="https://cdn.rawgit.com/dcodeIO/protobuf.js/6.X.X/dist/protobuf.min.js"></script>
 </head>
 <body>
   <h1 id="room_header">Canvas</h1>
@@ -80,14 +81,21 @@
     const newRoom = document.getElementById("new_room");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
+    let message = null, line = null, point = null, messageType = null;
 
     let socket;
 
     let lastPoints = {}
     let currX = null, currY = null, drawing = false;
 
+    protobuf.load("./messages.proto", function(err, root) {
+      message = root.lookupType("canvas.Message");
+      line = root.lookupType("canvas.Line");
+      point = root.lookupType("canvas.Point");
+      messageType = root.lookupEnum("canvas.MessageType");
+    });
 
-    const loadRooms = () => fetch("http://192.168.1.23:9090/rooms", {"mode": "cors"}).then(response => {
+    const loadRooms = () => fetch("http://localhost:9090/rooms", {"mode": "cors"}).then(response => {
       response.json().then(js => {
         let tbody = roomsList.getElementsByTagName('tbody')[0];
 
@@ -127,23 +135,23 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
 
-    const onSocketMessage = e => {
-      mesg = JSON.parse(e.data);
+    const onSocketMessage = async e => {
+      const mesg = message.decode(new Uint8Array(await e.data.arrayBuffer()));
 
-      switch (mesg.type) {
+      switch (mesg.mtype) {
         case 0:
           let i = 0;
           if (lastPoints[mesg.line.ind] === undefined) {
-            lastPoints[mesg.line.ind] = [mesg.line.x[0], mesg.line.y[0]];
+            lastPoints[mesg.line.ind] = [mesg.line.points[0].x, mesg.line.points[0].y];
             i = 1;
           }
 
-          for (;i < mesg.line.x.length; i++) {
-            draw(lastPoints[mesg.line.ind][0], lastPoints[mesg.line.ind][1], mesg.line.x[i], mesg.line.y[i])
-            lastPoints[mesg.line.ind] = [mesg.line.x[i], mesg.line.y[i]]
+          for (;i < mesg.line.points.length; i++) {
+            draw(lastPoints[mesg.line.ind][0], lastPoints[mesg.line.ind][1], mesg.line.points[i].x, mesg.line.points[i].y)
+            lastPoints[mesg.line.ind] = [mesg.line.points[i].x, mesg.line.points[i].y]
           }
 
-          lastPoints[mesg.line.ind] = [mesg.line.x[mesg.line.x.length-1], mesg.line.y[mesg.line.y.length-1]];
+          lastPoints[mesg.line.ind] = [mesg.line.points[mesg.line.points.length-1].x, mesg.line.points[mesg.line.points.length-1].y];
           break;
         case 2:
           cleanCanvas();
@@ -161,11 +169,16 @@
 
       currX = __newX;
       currY = __newY;
-
-      socket.send(JSON.stringify({
-        type: 0,
-        line: { x: [currX], y: [currY] }
-      }));
+      const payload = message.create({
+        mtype: messageType.values.MESSAGE_POINT,
+        line: line.create({
+          ind: 0,
+          points: [point.create({
+            x: currX, y: currY
+          })]
+        })
+      })
+      socket.send(message.encode(payload).finish());
     }};
 
     const onMouseDown = e => {
@@ -182,14 +195,20 @@
     };
 
     const onMouseUp = e => {
-      socket.send(JSON.stringify({type: 1}));
+      const payload = message.create({
+        mtype: messageType.values.MESSAGE_STOP,
+      })
+      socket.send(message.encode(payload).finish());
       drawing = false;
       currX = null;
       currY = null;
     };
 
     const activateCallbacks = () => {
-      clean.onclick = () => socket.send(JSON.stringify({type: 2}));
+      clean.onclick = () => {
+        const payload = message.create({ mtype: messageType.values.MESSAGE_CLEAN })
+        socket.send(message.encode(payload).finish());
+      };
       leave.onclick = () => {
         roomHeader.textContent = "Canvas";
         leaveRoom();
@@ -223,7 +242,7 @@
       if (socket)
         leaveRoom();
 
-      socket = new WebSocket(`ws://192.168.1.23:9090/rooms/${name}`);
+      socket = new WebSocket(`ws://localhost:9090/rooms/${name}`);
       socket.onopen = activateCallbacks();
       socket.onclose = () => {
         leaveRoom();
@@ -246,7 +265,7 @@
       roomName.value = "";
       roomName.style.border = "";
 
-      fetch("http://192.168.1.23:9090/rooms", {
+      fetch("http://localhost:9090/rooms", {
         method: "post",
         body: JSON.stringify({
           name: __roomName

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package canvas;
+
+option go_package = "./protocol";
+
+enum MessageType {
+	MESSAGE_POINT = 0;
+	MESSAGE_STOP  = 1;
+	MESSAGE_CLEAN = 2;
+}
+
+message Point {
+	int32 x = 1;
+	int32 y = 2;
+}
+
+message Line {
+	int32 ind    = 1;
+	repeated Point points = 2;
+}
+
+message Message {
+	MessageType mtype  = 1;
+	optional Line line          = 2;
+}
