@@ -112,7 +112,10 @@
           button.type = "button";
           button.value = "join";
           button.class = "join_buttons";
-          button.onclick = () => { joinRoom(room); }
+          button.onclick = () => {
+            sessionStorage.setItem("room", room);
+            joinRoom(room);
+          }
           listRow.appendChild(button);
         }
       });
@@ -211,6 +214,7 @@
       };
       leave.onclick = () => {
         roomHeader.textContent = "Canvas";
+        sessionStorage.removeItem("room");
         leaveRoom();
       };
 
@@ -278,6 +282,10 @@
     loadRooms();
 
     setInterval(loadRooms, 3000);
+
+    const __savedRoom = sessionStorage.getItem("room");
+    if (__savedRoom)
+      joinRoom(__savedRoom);
 
   </script>
 </body>
