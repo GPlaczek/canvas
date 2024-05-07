@@ -191,10 +191,16 @@
       currX = e.clientX - __rect.left;
       currY = e.clientY - __rect.top;
 
-      ctx.beginPath();
-      ctx.fillStyle = "black";
-      ctx.fillRect(currX, currY, 2, 2);
-      ctx.closePath();
+      const payload = message.create({
+        mtype: messageType.values.MESSAGE_POINT,
+        line: line.create({
+          ind: 0,
+          points: [point.create({
+            x: currX, y: currY
+          })]
+        })
+      })
+      socket.send(message.encode(payload).finish());
     };
 
     const onMouseUp = e => {
