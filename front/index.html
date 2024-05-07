@@ -213,6 +213,11 @@
       currY = null;
     };
 
+    const onMouseOut = e => {
+      onMouseMove(e);
+      onMouseUp(e);
+    };
+
     const activateCallbacks = () => {
       clean.onclick = () => {
         const payload = message.create({ mtype: messageType.values.MESSAGE_CLEAN })
@@ -228,6 +233,7 @@
       canvas.addEventListener("mousemove", onMouseMove);
       canvas.addEventListener("mousedown", onMouseDown);
       canvas.addEventListener("mouseup", onMouseUp);
+      canvas.addEventListener("mouseout", onMouseOut);
     };
 
     const leaveRoom = () => {
