@@ -164,8 +164,8 @@
      const onMouseMove = e => { if (drawing) {
       const __rect = canvas.getBoundingClientRect();
 
-      const __newX = e.clientX - __rect.left + window.pageXOffset;
-      const __newY = e.clientY - __rect.top + window.pageYOffset;
+      const __newX = e.clientX - __rect.left;
+      const __newY = e.clientY - __rect.top;
 
       if (currX !== null && currY !== null)
         draw(currX, currY, __newX, __newY);
@@ -188,8 +188,8 @@
       drawing = true;
       const __rect = canvas.getBoundingClientRect();
 
-      currX = e.clientX - __rect.left + window.pageXOffset;
-      currY = e.clientY - __rect.top + window.pageYOffset;
+      currX = e.clientX - __rect.left;
+      currY = e.clientY - __rect.top;
 
       ctx.beginPath();
       ctx.fillStyle = "black";
