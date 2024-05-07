@@ -7,3 +7,5 @@
 *.out
 go.work
 build/
+front/messages.proto
+pkg/protocol/messages.pb.go
